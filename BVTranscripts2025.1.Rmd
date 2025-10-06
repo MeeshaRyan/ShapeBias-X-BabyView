@@ -1,0 +1,811 @@
+---
+title: "BabyView Transcripts"
+output: html_document
+date: "2025-09-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+concat_df <- data.frame()
+```
+```{r}
+# parent_dir <- "/Users/meesha/Desktop/diarised/"
+# files_all <- list.files(parent_dir, full.names = TRUE, recursive = TRUE)
+# files_only <- files_all[!file.info(files_all)$isdir]
+```
+```{r}
+# # File path (example)
+# file_path <- "00400002_2023-11-26_1_a9d78efe8d.csv"
+# 
+# # Read the CSV file
+# df <- read.csv(file_path)
+# 
+# # Extract the filename without path and extension
+# file_name <- tools::file_path_sans_ext(basename(file_path))
+# 
+# # Split the string by underscore
+# parts <- strsplit(file_name, "_")[[1]]
+# 
+# # Assign parts to variables
+# family_id <- parts[1]
+# date <- parts[2]
+# session_no <- parts[3]
+# video_id <- parts[4]
+# 
+# # Add new columns to the dataframe
+# df$family_id <- family_id
+# df$date <- date
+# df$session_no <- session_no
+# df$video_id <- video_id
+# 
+# # View the updated dataframe
+# head(df)
+# ```
+# 
+# JK this is how you would do that but with a loop so you dont have to pull every file name manually
+# 
+# ```{r}
+# # Define the folder where your CSV files are
+# parent_dir <- "/Users/meesha/Desktop/diarised"
+# 
+# # Get all CSV files from subfolders (if needed)
+# csv_files <- list.files(parent_dir, pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
+# 
+# # Initialize an empty list to hold each processed dataframe
+# df_list <- list()
+# 
+# # Loop through each file
+# for (file_path in csv_files) {
+#   # Extract filename without extension
+#   file_name <- tools::file_path_sans_ext(basename(file_path))
+#   
+#   # Split filename by underscores
+#   parts <- strsplit(file_name, "_")[[1]]
+#   
+#   # Skip files that don't match the expected pattern
+#   if (length(parts) != 4) {
+#     warning(paste("Skipping file (unexpected format):", file_path))
+#     next
+#   }
+#   
+#   # Read the CSV
+#   print(file_path)
+#   df <- read.csv(file_path)
+#   
+#   # Add metadata columns
+#   df$family_id <- parts[1]
+#   df$date <- parts[2]
+#   df$session_no <- parts[3]
+#   df$video_id <- parts[4]
+#   
+#   # Add to the list
+#   df_list[[length(df_list) + 1]] <- df
+# }
+# 
+# # Combine all dataframes into one
+# final_df <- do.call(rbind, df_list)
+# 
+# ## Remove the non-English portions of the transcript
+# # Install packages if you haven't already
+# install.packages("cld2")
+# install.packages("cld3")
+# install.packages("textcat")
+# 
+# # Load the packages
+# library(cld2)
+# library(cld3)
+# library(textcat)
+```
+```{r}
+# # example
+# transcript <- c(
+#   "Hello, how are you today?",
+#   "Das ist ein deutscher Satz.",
+#   "What do you think of the new project?",
+#   "Il s'agit d'une phrase française.",
+#   "This project is very promising.",
+#   "Hola, ¿cómo estás?",
+#   "This sentence is mostly in English."
+# )
+# 
+# detected_languages <- cld2::detect_language(transcript, lang_code = TRUE)
+# 
+# # View the result
+# data.frame(text = transcript, language = detected_languages)
+```
+```{r}
+# Write to file
+write.csv(final_df, "combined_diarised_data.csv", row.names = FALSE)
+
+temp<- do.call(rbind, df_list) 
+colnames(temp)
+
+df <- read_csv("combined_diarised_data.csv")
+
+# Detect language and filter for English
+df_filtered <- df %>%
+  mutate(detected_lang = cld3::detect_language(utterance)) %>%
+  filter(detected_lang == "en")
+
+## Count rows before filtering >> to check if the filter is working
+# n_before <- nrow(df)
+# 
+## Count rows after filtering
+# n_after <- nrow(df_filtered)
+# 
+## Print summary
+# cat("Rows before filtering:", n_before, "\n")
+# cat("Rows after filtering:", n_after, "\n")
+# cat("Rows removed:", n_before - n_after, "\n")
+
+# Write CSV with all original columns, English-only rows
+write.csv(df_filtered, "en_combined_diarised_data.csv", row.names = FALSE)
+
+```
+```{r}
+# library(tidyverse)
+# parent_dir <- "/Users/meesha/Desktop/en_combined_diarised_data.csv"
+# view(combined_diarised)
+# combined_diarised <- read_csv(parent_dir, show_col_types = FALSE)
+# combined_diarised_select <- select(combined_diarised,family_id,date,session_no,video_id,speaker,token,token_start_time,token_end_time)
+# combined_kchi <- filter(combined_diarised_select,speaker=="KCHI")
+# 
+# library(udpipe)
+# model <- udpipe_download_model(language = "english") 
+# udmodel_english <- udpipe_load_model(model$file_model)
+# 
+# combined_kchi_pos <- udpipe_annotate(udmodel_english, x = combined_kchi$token)
+# combined_kchi_pos_df <- as.data.frame(combined_kchi_pos)
+# 
+# combined_kchi$sentence <-combined_kchi$token
+# test <- combined_kchi_pos_df %>% select(-c(doc_id))
+# 
+# print(test)
+# 
+# test2 <-select(test,sentence,token,lemma, upos)
+# merge_kchi <- merge(test2, combined_kchi, by="sentence") %>% distinct()
+# 
+# ## The below section pulls all entries with non alphanumeric characters in English; there's 688 entries
+# # test %>% 
+# #   select(sentence, upos) %>% 
+# #   filter(upos=="NOUN", 
+# #          grepl("[^a-zA-Z0-9]+$", sentence)) %>% 
+# #   view()
+# 
+# 
+# # ## testing 
+# # test2 <- test%>%
+# #   select(sentence, lemma, upos) %>%
+# #   distinct()
+# # merge_kchi <- merge(test2, combined_kchi, by="sentence") %>% distinct()
+# # head(merge_kchi)
+# 
+# 
+# # combined_kchi %>% 
+#   # select(family_id, sentence) %>% 
+#   # filter(is.na(sentence))
+# ## found 175 rows w/ NAs 
+# 
+# ##
+# merge_kchi2 <- select(merge_kchi,family_id,date,session_no,video_id,sentence,lemma,upos,token_start_time, token_end_time)
+# combined_kchi_noun <- filter(merge_kchi2, upos=="NOUN")
+# print(combined_kchi_noun)
+```
+
+
+
+
+Extracting ONLY nouns spoken by the key child from all monolingual English-speaking families--2025.1 pull
+
+```{r}
+## okay, in conclusion, i should just remove any families who speak more than 1 language: let's try this again
+
+## Maybe this part is still relevant?? Idk
+# parent_dir <- "/Users/meesha/Desktop/diarised/"
+# files_all <- list.files(parent_dir, full.names = TRUE, recursive = TRUE)
+# files_only <- files_all[!file.info(files_all)$isdir]
+
+# Define the folder where your CSV files are
+parent_dir <- "/Users/meesha/Desktop/diarised/english"
+
+# Get all CSV files from subfolders (if needed)
+csv_files <- list.files(parent_dir, pattern = "\\.csv$", recursive = TRUE, full.names = TRUE)
+
+# Initialize an empty list to hold each processed dataframe
+df_list <- list()
+
+# Loop through each file
+for (file_path in csv_files) {
+  # Extract filename without extension
+  file_name <- tools::file_path_sans_ext(basename(file_path))
+  
+  # Split filename by underscores
+  parts <- strsplit(file_name, "_")[[1]]
+  
+  # Skip files that don't match the expected pattern
+  if (length(parts) != 4) {
+    warning(paste("Skipping file (unexpected format):", file_path))
+    next
+  }
+  
+  # Read the CSV
+  print(file_path)
+  df <- read.csv(file_path)
+  
+  # Add metadata columns
+  df$family_id <- parts[1]
+  df$date <- parts[2]
+  df$session_no <- parts[3]
+  df$video_id <- parts[4]
+  
+  # Add to the list
+  df_list[[length(df_list) + 1]] <- df
+}
+
+# Combine all dataframes into one
+final_df <- do.call(rbind, df_list)
+
+## Remove the non-English portions of the transcript
+# Install packages if you haven't already
+# install.packages("cld2")
+# install.packages("cld3")
+# install.packages("textcat")
+
+# Load the package you need
+library(cld3)
+
+# Write to file
+write.csv(final_df, "english_diarised_data.csv", row.names = FALSE)
+```
+
+
+```{r}
+# # Read csv and select relevant columns
+# library(tidyverse)
+# parent_dir <- "/Users/meesha/Desktop/english_diarised_data.csv"
+# 
+# combined_diarised <- read_csv(parent_dir, show_col_types = FALSE)
+# combined_diarised_select <- select(combined_diarised,family_id,date,session_no,video_id,speaker,token_id,token,token_start_time,token_end_time)
+# 
+# # Filter by key child
+# combined_kchi <- filter(combined_diarised_select,speaker=="KCHI")
+# 
+# # Load parts of speech tagging and apply model to dataset
+# library(udpipe)
+# model <- udpipe_download_model(language = "english")
+# udmodel_english <- udpipe_load_model(model$file_model)
+# combined_kchi_pos <- udpipe_annotate(udmodel_english, x = combined_kchi$token)
+# combined_kchi_pos_df <- as.data.frame(combined_kchi_pos)
+# 
+# # Merge by "sentence" because the model creates a new "token" column
+# combined_kchi2 <- combined_kchi %>%
+#   mutate(sentence = token)
+# 
+# testing <- combined_kchi_pos_df %>% select(-c(doc_id))
+# 
+# merged <- testing %>%
+#   left_join(combined_kchi, by = c("utterance_id", "token_num"))
+# 
+# # This might be a little redundant now because we already selected the relevant columns from both the POS model df and the original transcripts?
+# merge_kchi2 <- select(merge_kchi,family_id,date,session_no,video_id,sentence,lemma,upos,token_start_time, token_end_time)
+# 
+# # Filter the merged transcripts/POS df by "noun" only and check if it is working
+# combined_kchi_noun <- filter(merge_kchi2, upos=="NOUN")
+# print(combined_kchi_noun)
+```
+
+then Chat Gpt 5 LIED to me about what is possible
+```{r}
+# library(tidyverse)
+# parent_dir <- "/Users/meesha/Desktop/english_diarised_data.csv"
+# transcript <- read_csv(parent_dir, show_col_types = FALSE)
+# transcript_kchi <-filter(transcript,speaker=="KCHI")
+# 
+# ud_in <- transcript_kchi %>%
+#   transmute(
+#     doc_id       = paste(family_id, session_no, video_id, sep = "_"),
+#     paragraph_id = 1,
+#     sentence_id  = utterance_id,  # your utterance or sentence index
+#     token_id     = token_id,     # your existing token ID
+#     token        = token         # your token string
+#   )
+# 
+# transcript_vert <- transcript_kchi %>%
+#   arrange(family_id, date, session_no, video_id, speaker,
+#           utterance_id, utterance, token_id, token,
+#           token_start_time, token_end_time, token_num) %>%
+#   mutate(
+#     doc_id       = paste(family_id, session_no, video_id, sep = "_"), 
+#     paragraph_id = 1,
+#     sentence_id  = utterance_id
+#   ) %>%
+#   transmute(doc_id, paragraph_id, sentence_id, token_id, token)
+#   
+# model <- udpipe_download_model(language = "english") 
+# udmodel <- udpipe_load_model(model$file_model)
+# 
+# anno <- udpipe(
+#   object       = udmodel,
+#   x            = transcript_vert,
+#   doc_id       = "doc_id",
+#   paragraph_id = "paragraph_id",
+#   sentence_id  = "sentence_id",
+#   token_id     = "token_id",
+#   term         = "token"
+# )
+# 
+# anno_df <- as.data.frame(anno)
+# 
+# transcript_annotated <- transcript %>%
+#   mutate(
+#     doc_id = paste(family_id, session_no, video_id, 
+#                    sep = "_",
+#                    sentence_id = utterance_id) %>%
+#   left_join(
+#     anno_df %>% select(doc_id, sentence_id, token_id, lemma, upos),
+#     by = c("doc_id", "sentence_id", "token_id")
+#   )
+#   
+# nouns <- transcript_annotated %>%
+#   filter(upos == "NOUN")
+
+```
+
+this successfully merged but there was no lemma or upos (everything was NA)
+```{r}
+# library(tidyverse)
+# library(udpipe)
+# 
+# # --- 1) Read & subset -------------------------------------------------------
+# parent_dir <- "/Users/meesha/Desktop/english_diarised_data.csv"
+# transcript <- read_csv(parent_dir, show_col_types = FALSE)
+# 
+# transcript_kchi <- transcript %>%
+#   filter(speaker == "KCHI")
+# 
+# # --- 2) Build vertical (pre-tokenized) table for UDPipe ---------------------
+# vertical <- transcript_kchi %>%
+#   arrange(family_id, session_no, video_id, utterance_id, token_id) %>%
+#   transmute(
+#     doc_id       = paste(family_id, session_no, video_id, sep = "_"),
+#     paragraph_id = 1L,
+#     sentence_id  = utterance_id,
+#     token_id     = token_id,
+#     token        = token
+#   )
+# 
+# #print(vertical)
+# 
+# # --- 3) Write vertical table to a temp file (required by udpipe_annotate) ---
+# tmpfile <- tempfile(fileext = ".tsv")
+# write.table(vertical, file = tmpfile, sep = "\t",
+#             quote = FALSE, row.names = FALSE, col.names = TRUE)
+# 
+# # --- 4) Load model & annotate WITHOUT re-tokenizing -------------------------
+# model   <- udpipe_download_model(language = "english")
+# udmodel <- udpipe_load_model(model$file_model)
+# 
+# anno <- udpipe_annotate(
+#   object    = udmodel,
+#   x         = "",          # dummy (ignored when file= is used)
+#   file      = tmpfile,
+#   tokenized = "vertical"
+# )
+# anno_df <- as.data.frame(anno)
+# 
+# # --- 5) Normalize key types on BOTH sides, then join ------------------------
+# # Use character for IDs to avoid numeric/character mismatches.
+# transcript_kchi_keys <- transcript_kchi %>%
+#   mutate(
+#     doc_id       = paste(family_id, session_no, video_id, sep = "_"),
+#     utterance_id = as.character(utterance_id),
+#     token_id     = as.character(token_id)
+#   )
+# 
+# anno_keys <- anno_df %>%
+#   mutate(
+#     sentence_id = as.character(sentence_id),
+#     token_id    = as.character(token_id)
+#   ) %>%
+#   select(doc_id, sentence_id, token_id, lemma, upos)
+# 
+# final <- transcript_kchi_keys %>%
+#   left_join(
+#     anno_keys,
+#     by = c("doc_id", "utterance_id" = "sentence_id", "token_id" = "token_id")
+#   ) %>%
+#   select(
+#     family_id, date, session_no, video_id, speaker,
+#     utterance_id, token_id, token, lemma, upos,
+#     token_start_time, token_end_time
+#   )
+# 
+# # Optional: quick sanity checks
+# final %>% count(upos, sort = TRUE) %>% print(n = 20)
+# sum(is.na(final$upos))
+# 
+# # (Optional) clean up temp file
+# unlink(tmpfile)
+# 
+# print(final)
+
+```
+
+FINALLYYYY
+```{r}
+library(tidyverse)
+library(udpipe)
+
+parent_dir <- "/Users/meesha/Desktop/english_diarised_data.csv"
+
+combined_diarised <- read_csv(parent_dir, show_col_types = FALSE)
+combined_diarised_select <- select(combined_diarised,family_id,date,session_no,video_id,speaker,token_id,token,token_start_time,token_end_time)
+
+# Filter by key child
+combined_kchi <- filter(combined_diarised_select,speaker=="KCHI")
+
+# Filter to key child but KEEP family_id intact
+combined_kchi <- combined_diarised %>%
+  filter(speaker == "KCHI") %>%
+  mutate(row_id = row_number())   # just a unique key per token
+
+# Load udpipe model
+model <- udpipe_download_model("english")
+udmodel_english <- udpipe_load_model(model$file_model)
+
+# Annotate with POS, keeping row_id
+combined_kchi_pos <- udpipe_annotate(
+  udmodel_english,
+  x = combined_kchi$token,
+  doc_id = combined_kchi$row_id
+)
+combined_kchi_pos_df <- as.data.frame(combined_kchi_pos)
+
+# Merge back: row_id keeps alignment, family_id/date/session stay
+merged <- combined_kchi_pos_df %>%
+  mutate(row_id = as.integer(doc_id)) %>%
+  left_join(combined_kchi, by = "row_id")
+
+# Explicitly rename token columns to avoid clashes
+merged <- merged %>%
+  rename(token = token.x,     # from udpipe
+         orig_token = token.y) # from diarised
+
+# Select clean columns
+merge_kchi2 <- merged %>%
+  select(family_id, date, session_no, video_id,
+         orig_token, lemma, upos, token_start_time, token_end_time)
+
+# Filter nouns
+combined_kchi_noun <- filter(merge_kchi2, upos == "NOUN")
+print(combined_kchi_noun)
+
+#write.csv(combined_kchi_noun, "combined_kchi_noun.csv", row.names = FALSE)
+
+
+# #getting a list of unique values (for family ids) 
+# unique_family <- unique(combined_kchi_noun$family_id)
+# print (unique_family)
+```
+
+adding an age column maybe?
+```{r}
+age <- read_csv("/Users/meesha/Desktop/BV-Main-Demographics.csv", show_col_types = FALSE)
+
+birthday <- left_join(combined_kchi_noun, age, by = "family_id")
+
+age_calculated <- birthday %>% 
+  select(family_id, date, date_birth_rounded, session_no, video_id,
+         orig_token, lemma, upos, token_start_time, token_end_time)
+#view (age_calculated)
+
+library(lubridate)
+# Parse date columns, specifying possible formats
+age_calculated$recording_date_parsed <- parse_date_time(age_calculated$date, orders = c("ymd"))
+age_calculated$birth_date_parsed <- parse_date_time(age_calculated$date_birth_rounded, orders = c("mdy"))
+
+#calculate age in months
+library(stringr)
+age_calculated$recording_date_corrected <- str_replace_all(age_calculated$recording_date_parsed, "2204-", "2024-")
+
+age_calculated$age <- interval(age_calculated$birth_date_parsed, age_calculated$recording_date_corrected) / months(1)
+# view(age_calculated)
+
+#clean up again
+bv_main_age <- age_calculated %>% 
+  select(family_id, birth_date_parsed, recording_date_corrected, session_no, video_id,
+         orig_token, lemma, upos, age, token_start_time, token_end_time)
+#view (bv_main_age)
+
+# #max age in this sample?
+# max(bv_main_age$age, na.rm = TRUE)
+```
+attempting graphs:
+```{r}
+# #regular graph with diagonal labels on x axis
+# library(dplyr)
+# library(ggplot2)
+# 
+# combined_kchi_noun %>%
+#   count(orig_token) %>%
+#   slice_max(n, n = 100) %>%
+#   ggplot(aes(x = reorder(orig_token, -n), y = n)) +
+#   geom_col(fill = "lightblue") +
+#   labs(title = "Top Noun Frequencies",
+#        x = "Noun",
+#        y = "Count") +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# 
+# #flipped graph so that labels are on y axis
+# combined_kchi_noun %>%
+#   count(orig_token, sort = TRUE) %>%
+#   slice_max(n, n = 100) %>%
+#   ggplot(aes(x = n, y = reorder(orig_token, n))) +
+#   geom_col(fill = "lightblue") +
+#   labs(title = "Top 100 Noun Frequencies",
+#        x = "Count",
+#        y = "Noun") +
+#   theme_minimal()
+
+```
+here i try to count how many nouns are in this data set (english speaking families from BV only; words spoken by kchi only)
+```{r}
+# there were 5,358 nouns
+library(dplyr)
+combined_kchi_noun %>% 
+  summarise(unique_count = n_distinct(orig_token))
+
+
+# element_frequencies <- table(my_vector)
+# print(element_frequencies)
+```
+
+```{r}
+library(tidyverse)
+library(udpipe)
+threshold <- max_BVmain_age <- max(bv_main_age$age, na.rm = TRUE)
+cdi_comparison <- read_csv("aoa_predictor_data.csv", show_col_types = FALSE)
+cdi_comparison2 <- cdi_comparison %>%
+  select(language,uni_lemma,category,measure, aoa) %>%
+  filter(language == "English (American)") %>%
+  filter(measure == "produces") %>%
+  filter(aoa <= threshold)
+view(cdi_comparison2)
+
+threshold2 <- max(cdi_comparison2$aoa, na.rm = TRUE) 
+
+vals1 <- cdi_comparison2 %>% select(uni_lemma) %>% distinct()
+vals2 <- bv_main_age %>% select(lemma) %>% distinct() # %>% pull()
+
+# Extract unique words from the 'lemma' column
+vals2_words <- unique(bv_main_age$lemma)
+
+# --- Step 1: Filter for valid English words using hunspell ---
+install.packages("hunspell")
+library(hunspell)
+
+view(vals2)
+view(vals2_words)
+
+# hunspell_check returns a boolean vector indicating correctness
+english_words_only <- vals2_words[hunspell_check(vals2_words)]
+vals2 <- as.data.frame(english_words_only)
+colnames(vals2) <- "uni_lemma"
+# remove all rows with only one character
+vals2 <- vals2 %>% filter(nchar(uni_lemma) > 2)
+# remove all rows with numbers
+vals2 <- vals2 %>% filter(!grepl("\\d", uni_lemma))
+# remove all rows with special characters (keep only letters and spaces)
+vals2 <- vals2 %>% filter(grepl("^[a-zA-Z]+$", uni_lemma))
+overlap <- intersect(vals1, vals2)
+summary_df <- tibble(
+set = c("CDI", "Overlap", "BV"),
+count = c(nrow(vals1), nrow(overlap), nrow(vals2))
+)
+ggplot(summary_df, aes(x = set, y = count, fill = set)) +
+geom_col() +
+labs(title = "Overlap of values between CDI and BV", x = NULL, y = "Number of unique values")
+
+## Word counts for each set
+# CDI >> 282
+# Overlap >> 217
+# BV >> 2816
+
+#are the nouns learned by the children in BV the same as the ones in CDI?
+# vals1 <- unique(cdi_comparison2$uni_lemma)
+# vals2 <- unique(bv_main_age$lemma)
+#
+# overlap <- intersect(vals1, vals2)
+# only_cdi <- setdiff(vals1, vals2)
+# only_BV <- setdiff(vals2, vals1)
+#
+# summary_df <- tibble(
+#   set = c("Only_CDI", "Overlap", "Only_BV", "CDI Total uniq", "BV Total uniq"),
+#   count = c(length(only_cdi), length(overlap), length(only_BV), length(unique(vals1)), length(unique(vals2))
+# ))
+#
+# ggplot(summary_df %>% filter(set != "Only_CDI", set != "Only_BV"), aes(x = set, y = count, fill = set)) +
+#   geom_col() +
+#   labs(title = "Overlap of values between CDI and BV", x = NULL, y = "Number of unique values")
+#i need to calculate the mean aoa for each token, across participants in BV. first we have a set of the earliest times that each family id is linked to a token
+
+```
+
+another way to visualize maybe?? bc maybe the BV children are speaking a lot of other words, but the CDI is supposed to show the same age range (bc we capped it at the max age for the BV kids). for both BV and CDI we took the unique lemmas only so there shouldnt be a bunch of duplicates in there bringing up the numbers...i feel like its unlikely that these children are speaking thousands of more words than the average...maybe i need the first words spoken by the bv families??? i dont understand how that could make a difference tho bc the cdi is supposed to be at the same age range. maybe i need to make it so that the bv kids are limited by cdi age as well? are they both being measured in months???
+
+okay, so the CDI has lemmas that are unique but probably bc they say things like "water (beverage)" so i need a fx thats something like "contains" instead of an exact match?. but then what about words like "waterfall"???
+
+
+
+i accidentally started on the next analysis which is here:
+```{r}
+#i need to calculate the mean aoa for each token, across participants in BV. first we have a set of the earliest times that each family id is linked to a token
+
+## determine the clean version of the bv main data for english words from kchi, nouns only. retain the age column, then get earliest ages (aoa approximation) for each token. then find mean aoa for each token from bv data set. then compare THAT to CDI aoa for whichever tokens match up (merge by token, make a scatter plot with aoa for each word from each dataset, then make a trend line? but theres so many words...) also: does this actually represent aoa for bv children? bc actually we have to separate it by age category first...if i group words for every 3 months or so, by age, i can compare the average earliest time that the BV children are reported saying the word.
+
+library(tidyverse)
+library(udpipe)
+library(lubridate)
+library(stringr)
+
+
+#using a clean version of the BV data which has the recording date, the birthdays and the tokens with lemmas, i should be able to just fix the date format like i did above and then calculate age again from there
+
+# Parse date columns, specifying possible formats
+clean_age_calculated <- read.csv("/Users/meesha/Desktop/bv_nouns_cleaned.csv")
+clean_age_calculated$recording_date_parsed <- parse_date_time(clean_age_calculated$date, orders = c("ymd"))
+clean_age_calculated$birth_date_parsed <- parse_date_time(clean_age_calculated$date_birth_rounded, orders = c("mdy"))
+clean_age_calculated$date_started_recording_parsed <- parse_date_time(clean_age_calculated$date_started_recording, orders = c("mdy"))
+
+#calculate age in months
+clean_age_calculated$recording_date_corrected <- str_replace_all(clean_age_calculated$recording_date_parsed, "2204-", "2024-")
+clean_age_calculated$age <- interval(clean_age_calculated$birth_date_parsed, clean_age_calculated$recording_date_corrected) / months(1)
+clean_age_calculated$age_started_recording <- interval(clean_age_calculated$birth_date_parsed, clean_age_calculated$date_started_recording_parsed) / months(1)
+
+bv_clean_age_calculated <- clean_age_calculated %>% 
+  select(family_id,lemma,session_no,video_id,orig_token,age,age_started_recording,token_start_time,token_end_time) %>% 
+  filter(!is.na(age))
+view(bv_clean_age_calculated)
+
+mean(bv_clean_age_calculated$age_started_recording, na.rm = TRUE) # avg is 9.358362 months for BV
+
+#okay so now we have a df with family id, all the lemmas and information about which video they came from, the age of the child at the time of that recording, the age of the child when they started recording, and token times for sanity check?
+
+#what words are said at all during each period of lets say 3-5 months
+```
+
+
+```{r }
+bv_clean_age_calculated2 <-bv_clean_age_calculated %>% 
+  distinct(lemma, .keep_all = TRUE)
+view(bv_clean_age_calculated2)
+
+bv_clean_age_groups <- bv_clean_age_calculated %>% 
+  mutate(
+    age_group = case_when(
+      age >= 9 & age <= 12.9999 ~ "9-12",
+      age >= 13 & age <= 15.9999 ~ "13-15", 
+      age >= 16 & age <= 18.9999 ~ "16-18",
+      age >= 19 & age <= 21.9999 ~ "19-21",
+      age >= 22 & age <= 24.9999 ~ "22-24",
+      age >= 25 & age <= 27.9999 ~ "25-27",
+      age >= 28 & age <= 30 ~ "28-30",
+      TRUE ~  NA_character_ # Assigns NA to all other cases
+    ), 
+    source = "bv", 
+    lemma = tolower(lemma)
+  ) 
+
+cdi_age_groups <- cdi_comparison2 %>% 
+  mutate(
+    age_group = case_when(
+      aoa >= 9 & aoa <= 12.9999 ~ "9-12",
+      aoa >= 13 & aoa <= 15.9999 ~ "13-15", 
+      aoa >= 16 & aoa <= 18.9999 ~ "16-18",
+      aoa >= 19 & aoa <= 21.9999 ~ "19-21",
+      aoa >= 22 & aoa <= 24.9999 ~ "22-24",
+      aoa >= 25 & aoa <= 27.9999 ~ "25-27",
+      aoa >= 28 & aoa <= 30 ~ "28-30",
+      TRUE ~ NA_character_ # Assigns NA to all other cases
+    ), 
+    source = "cdi", 
+    lemma = tolower(uni_lemma)
+  )  
+
+setdiff(cdi_age_groups$lemma, bv_clean_age_groups$lemma )
+
+# joined_age_groups <- full_join(bv_clean_age_groups,cdi_age_groups, by = "age_group")
+# view(joined_age_groups) #very incorrect, blended both sources somehow
+
+joined_age_groups <- full_join(bv_clean_age_groups %>% select(lemma, age_group, source), cdi_age_groups %>% select(lemma, age_group, source) , relationship = "many-to-many")
+joined_age_groups <- joined_age_groups %>% distinct()
+
+# > length(setdiff(cdi_age_groups$lemma, bv_clean_age_groups$lemma ))
+# [1] 69
+# > length(intersect(cdi_age_groups$lemma, bv_clean_age_groups$lemma ))
+# [1] 213
+# > length(setdiff( bv_clean_age_groups$lemma , cdi_age_groups$lemma))
+# [1] 2415
+
+
+
+joined_age_groups_n <- joined_age_groups %>% select(lemma, age_group, source) %>% group_by(lemma, age_group) %>% mutate(count = n()) %>% filter(!is.na(age_group))
+
+joined_age_groups_n <- joined_age_groups_n %>%
+  mutate(sourcee = case_when(
+   count == 2 ~ "both",
+   TRUE ~ source
+  )) %>% select(-c(count))
+
+view(joined_age_groups)
+
+overlap_by_age <- intersect(bv_clean_age_calculated2$lemma,cdi_comparison2$uni_lemma)
+ggplot(data_long, aes(x = Category, y = Value, fill = Group)) +
+      geom_bar(position = "dodge", stat = "identity") +
+      labs(title = "Grouped Bar Chart Example",
+           x = "Main Category",
+           y = "Measured Value",
+           fill = "Sub-Group") +
+      scale_fill_manual(values = c("Group1" = "blue", "Group2" = "red")) + # Custom colors
+      theme_minimal()
+
+
+# ggplot(summary_df, aes(x = set, y = count, fill = set)) +
+# geom_col() +
+# labs(title = "Overlap of Lemmas Spoken (By Age Group) for BV and CDI", x = "Age Group", y = "Number of unique lemmas")
+
+word_counts <- joined_age_groups_n %>%
+  count(age_group, sourcee, sort = TRUE)
+
+counts <-joined_age_groups_n %>% distinct( age_group, sourcee, lemma) %>% group_by(age_group, sourcee) %>% summarize( wordscount = n())
+
+# 20 families 
+```
+
+```{r}
+joined_age_groups_n %>% filter(sourcee == "bv") %>% group_by(lemma) %>% summarize(count = n())
+```
+
+
+```{r }
+ggplot(counts, aes(x= age_group, y = wordscount, fill = sourcee)) +
+  geom_bar(stat = "identity", position = "dodge")
+
+# # Create a grouped bar chart to visualize the word counts.
+# ggplot(word_counts, aes(x = age_group, y = n, fill = sourcee)) +
+#   geom_bar(stat = "identity", position = "dodge") +
+#   labs(
+#     title = "Number of Words per Age Group from Each Source",
+#     x = "Age Group",
+#     y = "Number of Words (Unique Lemmas)",
+#     fill = "Source"
+#   ) +
+#   theme_minimal() +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
