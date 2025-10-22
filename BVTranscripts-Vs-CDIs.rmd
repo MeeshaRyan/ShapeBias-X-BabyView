@@ -1,0 +1,77 @@
+---
+title: "BVTranscripts-Vs-CDIs"
+output: html_document
+date: "2025-10-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+i want to match the lemmas that appear in bv transc. to lemmas in bv cdis and then see, within age group, how many times each word appears in both datasets
+
+so i need to:
+- apply age groups to the bv cdi df
+- group by age group for the graph
+- within each age group i need to know how many of the SAME unique lemmas appeared in both sources
+
+
+```{r}
+child_spoken <- bv_clean_age_calculated %>% 
+  select(-orig_token, -age_started_recording, -token_start_time, -token_end_time) %>% 
+  mutate(
+    age_group = case_when(
+      age >= 9 & age <= 12.9999 ~ "9-12",
+      age >= 13 & age <= 15.9999 ~ "13-15", 
+      age >= 16 & age <= 18.9999 ~ "16-18",
+      age >= 19 & age <= 21.9999 ~ "19-21",
+      age >= 22 & age <= 24.9999 ~ "22-24",
+      age >= 25 & age <= 27.9999 ~ "25-27",
+      age >= 28 & age <= 30 ~ "28-30",
+      TRUE ~  NA_character_
+      ), 
+  lemma = tolower(lemma),
+  source = "child-spoken",
+    ) %>% 
+  filter(!is.na(age_group))
+
+bv_CDI <- combined_clean_l %>% 
+  select(-sex, -birth_order, -file_tag) %>%
+  mutate(age = as.numeric(age),
+    age_group = case_when(
+      age >= 8.9 & age <= 12.9999 ~ "9-12",
+      age >= 13 & age <= 15.9999 ~ "13-15", 
+      age >= 16 & age <= 18.9999 ~ "16-18",
+      age >= 19 & age <= 21.9999 ~ "19-21",
+      age >= 22 & age <= 24.9999 ~ "22-24",
+      age >= 25 & age <= 27.9999 ~ "25-27",
+      age >= 28 & age <= 30 ~ "28-30",
+      TRUE ~  NA_character_
+      ), 
+    source = "bv_CDI",
+    )
+# names(child_spoken)
+# names(bv_CDI)
+
+
+
+combined_spoken_heard <- full_join(
+  child_spoken,
+  bv_CDI,
+  by = "age_group", 
+  suffix = c(".sp", ".cdi")
+  )
+
+## join error - vector limit reached
+# n_sp <- child_spoken %>% count(age_group, name = "n_sp")
+# n_cdi <- bv_CDI %>% count(age_group, name = "n_cdi")
+# 
+# n_sp %>%
+#   inner_join(n_cdi, by = "age_group") %>%
+#   mutate(prod = n_sp * n_cdi) %>%
+#   summarise(total_rows_if_joined = sum(prod, na.rm = TRUE))
+
+
+
+```
+

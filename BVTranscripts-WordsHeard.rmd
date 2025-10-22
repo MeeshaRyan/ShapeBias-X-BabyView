@@ -1,0 +1,259 @@
+---
+title: "BVTranscripts-WordsHeard"
+output: html_document
+date: "2025-10-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+NOTE: this is from the 2025.1 pull from BV data; we use diarised transcripts from the BV team but we are looking at all things spoken by adults in the videos. we are running the code htat was run on the BV words spoken by the key children
+
+The first bit is words heard compared to words said by the child. at the end we have some stuff on getting the bv cdis. all other bv cdi stuff is in another r markdown.
+
+```{r}
+library(tidyverse)
+library(udpipe)
+
+parent_dir2 <- "/Users/meesha/Desktop/english_diarised_data.csv"
+
+combined_diarised2 <- read_csv(parent_dir2, show_col_types = FALSE)
+view(combined_diarised2)
+
+combined_diarised_select2 <- select(combined_diarised2,family_id,date,session_no,video_id,speaker,token_id,token,token_start_time,token_end_time)
+
+# Filter by FEM and MAL
+combined_adult <- filter(combined_diarised_select,
+                         speaker %in% c("FEM", "MAL"))
+
+# Filter to adults but KEEP family_id intact
+combined_adult <- combined_diarised2 %>%
+  filter(speaker %in% c("FEM", "MAL")) %>%
+  mutate(row_id = row_number())   # just a unique key per token
+
+# Load udpipe model
+model <- udpipe_download_model("english")
+udmodel_english <- udpipe_load_model(model$file_model)
+
+# Annotate with POS, keeping row_id
+combined_adult_pos <- udpipe_annotate(
+  udmodel_english,
+  x = combined_adult$token,
+  doc_id = combined_adult$row_id
+)
+combined_adult_pos_df <- as.data.frame(combined_adult_pos)
+
+# view(combined_adult)
+
+# Merge back: row_id keeps alignment, family_id/date/session stay
+merged_a <- combined_adult_pos_df %>%
+  mutate(row_id = as.integer(doc_id)) %>%
+  left_join(combined_adult, by = "row_id")
+
+# Explicitly rename token columns to avoid clashes
+merged_a <- merged_a %>%
+  rename(token = token.x,     # from udpipe
+         orig_token = token.y) # from diarised
+
+# Select clean columns
+merge_adult2 <- merged_a %>%
+  select(family_id, date, session_no, video_id,
+         orig_token, lemma, upos, token_start_time, token_end_time)
+
+# Filter nouns
+combined_adult_noun <- filter(merge_adult2, upos == "NOUN")
+view(combined_adult_noun)
+
+#write.csv(combined_adult_noun, "combined_adult_noun.csv", row.names = FALSE)
+```
+
+okay so now we should have transcripts (english only) from only adults (MAL, FEM) without any special characters, retaining IDs, only nouns
+
+now I should probably have an age column for the age of their child during the recording time
+
+```{r}
+age_a <- read_csv("/Users/meesha/Desktop/BV-Main-Demographics.csv", show_col_types = FALSE)
+
+birthday_a <- left_join(combined_adult_noun, age_a, by = "family_id")
+
+age_calculated_a <- birthday_a %>% 
+  select(family_id, date, date_birth_rounded, session_no, video_id,
+         orig_token, lemma, upos, token_start_time, token_end_time)
+view (age_calculated_a)
+
+library(lubridate)
+# Parse date columns, specifying possible formats
+age_calculated_a$recording_date_parsed <- parse_date_time(age_calculated_a$date, orders = c("ymd"))
+age_calculated_a$birth_date_parsed <- parse_date_time(age_calculated_a$date_birth_rounded, orders = c("mdy"))
+
+#calculate age in months
+library(stringr)
+age_calculated_a$recording_date_corrected <- str_replace_all(age_calculated_a$recording_date_parsed, "2204-", "2024-")
+
+age_calculated_a$age <- interval(age_calculated_a$birth_date_parsed, age_calculated_a$recording_date_corrected) / months(1)
+#view(age_calculated_a)
+
+#clean up again
+bv_adult_nouns_child_age <- age_calculated_a %>% 
+  select(family_id, birth_date_parsed, recording_date_corrected, session_no, video_id,
+         orig_token, lemma, upos, age, token_start_time, token_end_time)
+view(bv_adult_nouns_child_age)
+
+library(hunspell)
+
+vals_words <- unique(combined_source$lemma)
+# hunspell_check returns a boolean vector indicating correctness
+english_words_only <- vals_words[hunspell_check(vals_words)]
+vals_words <- as.data.frame(english_words_only)
+colnames(vals_words) <- "lemma"
+# remove all rows with only one character
+english_words_only <- vals_words %>% filter(nchar(lemma) > 2)
+# remove all rows with numbers
+english_words_only <- vals_words %>% filter(!grepl("\\d", lemma))
+# remove all rows with special characters (keep only letters and spaces)
+english_words_only <- vals_words %>% filter(grepl("^[a-zA-Z]+$", lemma))
+
+
+```
+
+Amazing! now we have the adult nouns from english speaking families, alongside the ages of their children at the time the words were spoken
+
+Okay BV cdi is confusing so lets see how things children say compare to things children hear
+
+```{r}
+bv_clean_age_calculated2 <-bv_clean_age_calculated %>% 
+  distinct(lemma, .keep_all = TRUE)
+#view(bv_clean_age_calculated2)
+
+bv_adult_nouns_child_age <- age_calculated_a %>% 
+  select(family_id,lemma,session_no,video_id,orig_token,age,token_start_time,token_end_time) %>% 
+  filter(!is.na(age)) %>% 
+   distinct(lemma, .keep_all = TRUE)
+
+bv_clean_age_groups <- bv_clean_age_calculated2 %>% 
+  mutate(
+    age_group = case_when(
+      age >= 13 & age <= 15.9999 ~ "13-15", 
+      age >= 16 & age <= 18.9999 ~ "16-18",
+      age >= 19 & age <= 21.9999 ~ "19-21",
+      age >= 22 & age <= 24.9999 ~ "22-24",
+      age >= 25 & age <= 27.9999 ~ "25-27",
+      age >= 28 & age <= 30 ~ "28-30",
+      TRUE ~  NA_character_ # Assigns NA to all other cases
+    ), 
+    source = "child-spoken", 
+    lemma = tolower(lemma)
+  ) 
+
+bv_clean_age_groups <- bv_clean_age_groups %>% 
+  select(-age_started_recording)
+  
+adult_by_age_groups <- bv_adult_nouns_child_age %>% 
+  mutate(
+    age_group = case_when(
+      age >= 13 & age <= 15.9999 ~ "13-15", 
+      age >= 16 & age <= 18.9999 ~ "16-18",
+      age >= 19 & age <= 21.9999 ~ "19-21",
+      age >= 22 & age <= 24.9999 ~ "22-24",
+      age >= 25 & age <= 27.9999 ~ "25-27",
+      age >= 28 & age <= 30 ~ "28-30",
+      TRUE ~ NA_character_ # Assigns NA to all other cases
+    ), 
+    source = "child-heard", 
+    lemma = tolower(lemma)
+  )  
+
+view(bv_clean_age_groups)
+view(adult_by_age_groups)
+
+combined_source <- rbind(bv_clean_age_groups, adult_by_age_groups)
+
+combined_source_english <- combined_source %>% 
+  filter(lemma %in% english_words_only$lemma)
+
+combined_source_english %>%
+  group_by(source, age_group) %>%
+  filter(!is.na(age_group)) %>%
+  summarise(unique_lemmas = n_distinct(lemma), .groups = "drop") %>%
+  ggplot(aes(x = age_group, y = unique_lemmas, fill = source)) +
+  geom_col(position = "dodge") +
+  labs(
+    x = "Age group",
+    y = "Number of unique lemmas",
+    fill = "Source"
+  ) +
+  theme_minimal()
+
+```
+
+
+```{r}
+#next we attempt some graphs: let's first take in the bv cdi and see how that compares to the bv transcripts of the same children >> accuracy of the bv cdi capturing children's word production; let's also take out the youngest children for whom the transcription is kinda bad
+
+# unique_family2 <- unique(combined_adult_noun$family_id)
+# print (unique_family2)
+
+# install.packages(c("readr","purrr","dplyr","stringr"))  # if needed
+library(readr)
+library(purrr)
+library(dplyr)
+library(stringr)
+
+# 1) Set your folder of CSVs
+folder <- path.expand("~/Desktop/ShapeBias-X-BabyView/BV-Eng-CDIs")
+
+# 2) List CSVs
+files <- list.files(folder, pattern = "\\.csv$", full.names = TRUE)
+
+# 3) Choose how to extract the label from filenames
+#    Example: take the part BEFORE the first underscore
+#    e.g., "experiment1_subjects.csv" -> "experiment1"
+extract_pattern <- "^([^-]+)-"
+
+# Build the label (tag) from each filename
+tags <- str_match(basename(files), extract_pattern)[, 2]
+
+# # (optional) sanity check
+# if (any(is.na(tags))) {
+#   warning("Some filenames didn't match the pattern; their tag will be NA.")
+# }
+
+# Attach names so map_dfr can use them for the .id column
+names(files) <- tags
+
+# 4) Read and row-bind (union of columns). Missing cols become NA automatically.
+
+combined <- purrr::map_dfr(
+  .x = files,
+  .f = ~ readr::read_csv(.x, show_col_types = FALSE, col_types = readr::cols(.default = "c")),
+  .id = "file_tag"
+)
+#view(combined)
+
+#retain relevant columns and pivot longer
+combined_clean <- combined %>% 
+  select(-opt_out, -study_name, -local_lab_id, -repeat_num, -link, -completed, -completedBackgroundInfo, -due_date, -last_modified, -created_date, -completed_date, -event_id, -zip_code, -birth_weight_lb, -birth_weight_kg, -multi_birth_boolean, -multi_birth, -sibling_boolean, -sibling_count, -sibling_data, -born_on_due_date, -early_or_late, -due_date_diff, -form_filler, -form_filler_other, -primary_caregiver, -primary_caregiver_other, -mother_yob, -mother_education, -secondary_caregiver, -secondary_caregiver_other, -father_yob, -father_education, -annual_income, -child_ethnicity, -child_hispanic_latino, -caregiver_info, -caregiver_other, -other_languages_boolean, -other_languages, -language_from, -language_days_per_week, -language_hours_per_day)
+
+combined_clean <- combined_clean %>% 
+  select(-c(8:43))
+
+combined_clean_l <- combined_clean %>%
+  pivot_longer(
+    cols = -c(file_tag, subject_id, administration_id, age, sex, country, birth_order),
+    names_to = "variable",
+    values_to = "value"
+  )
+view(combined_clean_l)
+
+# 5) Save to one CSV
+write_csv(combined_clean_l, file.path(folder, "bv_cdis_combined.csv"))
+
+```
+
+YAY theres bv cdis which have the lemmas for all kinds of words, not just nouns, along with demo info and such. let's filter for nouns? but by lemma as much as possible? maybe i can just have it match to lemmas that exist in the bv transcripts
+
+
+
+
