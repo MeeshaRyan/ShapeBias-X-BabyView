@@ -75,3 +75,57 @@ combined_spoken_heard <- full_join(
 
 ```
 
+
+Attempting this again: using bv cdis df, filter for NA, run hunspell to get english words only (no special characters)
+
+```{r}
+library(tidyverse)
+library(stringr)
+library(hunspell)
+
+bv_cdi_combined <- read.csv("/Users/meesha/Desktop/ShapeBias-X-BabyView/BV-Eng-CDIs/bv_cdis_combined.csv")
+
+bv_cdi_combined2 <- bv_cdi_combined %>% 
+ filter(!is.na(value))
+
+test_clean <- bv_cdi_combined2 %>% 
+  mutate(variable = str_replace(bv_cdi_combined2$variable, "\\..*$", "")) %>%
+  filter(str_detect(variable, "^[A-Za-z_]+$"))
+
+test_clean2 <- test_clean$variable[hunspell_check(test_clean$variable)]
+
+test_clean2 <- as.data.frame(test_clean2)
+
+test_filtered <- test_clean %>% 
+  filter(variable %in% test_clean2$test_clean2)
+view(test_filtered)
+
+
+```
+
+POS model for nouns, re-merge for the final df
+```{r}
+# Load udpipe model
+library(udpipe)
+model <- udpipe_download_model("english")
+udmodel_english <- udpipe_load_model(model$file_model)
+
+# Annotate with POS, keeping row_id
+test_bv_cdis_pos <- udpipe_annotate(
+  udmodel_english,
+  x = test_filtered$variable,
+  doc_id = test_filtered$administration_id
+)
+test_bv_cdis_pos_df <- as.data.frame(test_bv_cdis_pos)
+
+test2_bv_cdis_pos_df <- test_bv_cdis_pos_df %>% 
+  filter(upos == "NOUN")
+
+bv_cdi_nouns <- test_filtered %>% 
+  filter(variable %in% test2_bv_cdis_pos_df$lemma) %>% 
+  filter(value == "produces")
+
+write.csv(bv_cdi_nouns)
+
+```
+

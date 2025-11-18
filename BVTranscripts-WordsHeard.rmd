@@ -25,7 +25,7 @@ view(combined_diarised2)
 combined_diarised_select2 <- select(combined_diarised2,family_id,date,session_no,video_id,speaker,token_id,token,token_start_time,token_end_time)
 
 # Filter by FEM and MAL
-combined_adult <- filter(combined_diarised_select,
+combined_adult <- filter(combined_diarised_select2,
                          speaker %in% c("FEM", "MAL"))
 
 # Filter to adults but KEEP family_id intact
@@ -248,12 +248,49 @@ combined_clean_l <- combined_clean %>%
 view(combined_clean_l)
 
 # 5) Save to one CSV
-write_csv(combined_clean_l, file.path(folder, "bv_cdis_combined.csv"))
+#write_csv(combined_clean_l, file.path(folder, "bv_cdis_combined.csv"))
 
 ```
 
 YAY theres bv cdis which have the lemmas for all kinds of words, not just nouns, along with demo info and such. let's filter for nouns? but by lemma as much as possible? maybe i can just have it match to lemmas that exist in the bv transcripts
 
+what if we just read in the csv file?
+```{r}
+library(tidyverse)
 
+all_bv_cdis <- read_csv("/Users/meesha/Desktop/ShapeBias-X-BabyView/BV-Eng-CDIs/bv_cdis_combined.csv")
+
+all_produced_bv_cdis <- all_bv_cdis %>% 
+  filter(all_bv_cdis$value == "produces")
+
+# #Split the string by underscore
+# parts <- strsplit(all_produced_bv_cdis$variable, ".")[[1]]
+# 
+# # Assign parts to variables
+# all_produced_bv_cdis$lemma <- parts[1]
+# all_produced_bv_cdis$other <- parts[2]
+# 
+# # Add new columns to the dataframe
+# view()
+
+extract_pattern2 <- "^([^-]+)."
+
+# Build the label (tag) from each filename
+tags1 <- str_match(basename(all_produced_bv_cdis$variable), extract_pattern)[, 2]
+
+# (optional) sanity check
+if (any(is.na(tags1)))
+
+# Attach names so map_dfr can use them for the .id column
+names(all_produced_bv_cdis$variable) <- tags1
+
+# 4) Read and row-bind (union of columns). Missing cols become NA automatically.
+
+combined <- purrr::map_dfr(
+  .x = files,
+  .f = ~ readr::read_csv(.x, show_col_types = FALSE, col_types = readr::cols(.default = "c")),
+  .id = "file_tag"
+)
+```
 
 
