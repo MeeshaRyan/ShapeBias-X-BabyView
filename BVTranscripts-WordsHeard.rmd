@@ -101,19 +101,21 @@ bv_adult_nouns_child_age <- age_calculated_a %>%
          orig_token, lemma, upos, age, token_start_time, token_end_time)
 view(bv_adult_nouns_child_age)
 
-library(hunspell)
+write.csv(bv_adult_nouns_child_age, "bv_adult_nouns_child_age.csv", row.names = FALSE)
 
-vals_words <- unique(combined_source$lemma)
-# hunspell_check returns a boolean vector indicating correctness
-english_words_only <- vals_words[hunspell_check(vals_words)]
-vals_words <- as.data.frame(english_words_only)
-colnames(vals_words) <- "lemma"
-# remove all rows with only one character
-english_words_only <- vals_words %>% filter(nchar(lemma) > 2)
-# remove all rows with numbers
-english_words_only <- vals_words %>% filter(!grepl("\\d", lemma))
-# remove all rows with special characters (keep only letters and spaces)
-english_words_only <- vals_words %>% filter(grepl("^[a-zA-Z]+$", lemma))
+# library(hunspell)
+# 
+# vals_words <- unique(combined_source$lemma)
+# # hunspell_check returns a boolean vector indicating correctness
+# english_words_only <- vals_words[hunspell_check(vals_words)]
+# vals_words <- as.data.frame(english_words_only)
+# colnames(vals_words) <- "lemma"
+# # remove all rows with only one character
+# english_words_only <- vals_words %>% filter(nchar(lemma) > 2)
+# # remove all rows with numbers
+# english_words_only <- vals_words %>% filter(!grepl("\\d", lemma))
+# # remove all rows with special characters (keep only letters and spaces)
+# english_words_only <- vals_words %>% filter(grepl("^[a-zA-Z]+$", lemma))
 
 
 ```

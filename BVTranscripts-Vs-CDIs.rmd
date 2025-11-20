@@ -125,7 +125,22 @@ bv_cdi_nouns <- test_filtered %>%
   filter(variable %in% test2_bv_cdis_pos_df$lemma) %>% 
   filter(value == "produces")
 
-write.csv(bv_cdi_nouns)
+write.csv(bv_cdi_nouns, "bv_cdi_nouns.csv", row.names = FALSE)
+
+```
+
+```{r}
+#make a df with the frequencies of adult utterances for each lemma by age of the child?
+
+#early_utt_per_child <- bv_cdi_nouns %>% 
+  #group_by(subject_id, age)
+  
+
+frequency_utt_heard <- bv_adult_nouns_child_age %>% 
+  count(lemma, sort = TRUE)
+
+library(ggplot2)
+
 
 ```
 
