@@ -121,11 +121,14 @@ test_bv_cdis_pos_df <- as.data.frame(test_bv_cdis_pos)
 test2_bv_cdis_pos_df <- test_bv_cdis_pos_df %>% 
   filter(upos == "NOUN")
 
-bv_cdi_nouns <- test_filtered %>% 
+bv_cdi_nouns2 <- test_filtered %>% 
   filter(variable %in% test2_bv_cdis_pos_df$lemma) %>% 
-  filter(value == "produces")
+  filter(value == "understands")
 
-write.csv(bv_cdi_nouns, "bv_cdi_nouns.csv", row.names = FALSE)
+write.csv(bv_cdi_nouns2, "bv_cdi_nouns_und.csv",row.names = FALSE)
+#write.csv(bv_cdi_nouns, "bv_cdi_nouns.csv", row.names = FALSE)
+
+view(test_filtered)
 
 ```
 
@@ -135,12 +138,120 @@ write.csv(bv_cdi_nouns, "bv_cdi_nouns.csv", row.names = FALSE)
 #early_utt_per_child <- bv_cdi_nouns %>% 
   #group_by(subject_id, age)
   
+library(tidyverse)
+library(dplyr)
 
-frequency_utt_heard <- bv_adult_nouns_child_age %>% 
-  count(lemma, sort = TRUE)
+bv.cdi <- read.csv("/Users/meesha/Desktop/ShapeBias-X-BabyView/bv_cdi_nouns.csv")
+child.heard <- read.csv("/Users/meesha/Desktop/ShapeBias-X-BabyView/bv_adult_nouns_child_age.csv")
+bv.cdi.und <- read.csv("/Users/meesha/Desktop/ShapeBias-X-BabyView/bv_cdi_nouns_und.csv")
+```
 
-library(ggplot2)
+Samah: lets compare this (the 42 words younger kids produces from the bv-cdi) to the number of words from the genral cdi for the same age <= 16 mo
+same for understands (number of kids/families)
 
+```{r }
+younger_prod <- bv.cdi %>% 
+  filter(bv.cdi$age <= 16)
+
+younger_heard <- child.heard %>% 
+  filter(child.heard$age <= 16)
+
+overlap_und <- intersect(bv.cdi.und$variable, younger_heard$lemma)
+#overlap_prod <- intersect(bv.cdi$variable, child.heard$lemma)
+overlap_young_prod <- intersect(younger_prod$variable, younger_heard$lemma)
+ovrlap_young_prod_und <- intersect(younger_prod$variable, bv.cdi.und$variable )
+
+length(overlap_young_prod)
+length(overlap_und)
+length(ovrlap_young_prod_und)
+
+```
+
+```{r }
+older_heard <- child.heard %>% 
+  filter(child.heard$age > 16)
+max(older_heard$age)
+
+older_prod <- bv.cdi %>% 
+  filter(bv.cdi$age > 16)
+
+overlap_old_prod <- intersect(older_prod$variable, older_heard$lemma)
+
+kchi_nouns <- read.csv("/Users/meesha/Desktop/ShapeBias-X-BabyView/bv_main_age.csv")
+
+vals <- kchi_nouns %>% select(lemma) %>% distinct()
+
+# Extract unique words from the 'lemma' column
+vals_words <- unique(kchi_nouns$lemma)
+
+# --- Step 1: Filter for valid English words using hunspell ---
+library(hunspell)
+
+# hunspell_check returns a boolean vector indicating correctness
+kchi_nouns_eng_words <- vals_words[hunspell_check(vals_words)]
+vals1 <- as.data.frame(kchi_nouns_eng_words)
+colnames(vals1) <- "lemma"
+# remove all rows with only one character
+vals1 <- vals1 %>% filter(nchar(lemma) > 2)
+# remove all rows with numbers
+vals1 <- vals1 %>% filter(!grepl("\\d", lemma))
+# remove all rows with special characters (keep only letters and spaces)
+vals1 <- vals1 %>% filter(grepl("^[a-zA-Z]+$", lemma))
+
+kchi_nouns2 <- kchi_nouns %>% 
+  filter(lemma %in% vals1$lemma)
+
+
+younger_kchi_prod <- kchi_nouns2 %>% 
+  filter(age <= 16)
+  
+older_kchi_prod <- kchi_nouns2 %>% 
+  filter(age >= 17 & age <= 28.966 )
+
+
+summary_Df <- older_kchi_prod %>% group_by(lemma) %>% summarize( count = n()) %>% filter(count > 1)
+
+```
+
+
+```{r}
+length(older_heard$lemma)
+length(older_prod$variable)
+length(overlap_old_prod)
+length(younger_heard$lemma)
+length(unique(older_kchi_prod$lemma))
+
+length(unique(kchi_nouns2$lemma))
+```
+
+
+```{r }
+summary_df2 <- tibble(
+set = c("BV-CDI", "Overlap", "BV-Heard"),
+count = c(nrow(vals1), nrow(overlap), nrow(vals2))
+)
+ggplot(summary_df, aes(x = set, y = count, fill = set)) +
+geom_col() +
+labs(title = "Overlap of values between CDI and BV", x = NULL, y = "Number of unique values")
+
+
+```
+
+responding to Samah's comment above: we tried these things below
+
+```{r}
+general_cdi <- read.csv("/Users/meesha/Desktop/ShapeBias-X-BabyView/aoa_predictor_data.csv")
+
+general_cdi_younger_prod <- general_cdi %>% 
+  filter(language == "English (American)") %>% 
+  filter(measure == "produces") %>% 
+   filter(aoa < 17)
+
+
+general_cdi_older_prod <- general_cdi %>% 
+  filter(language == "English (American)") %>% 
+  filter(measure == "produces") %>% 
+   filter(  aoa >= 17 & aoa <= 28.966 ) 
 
 ```
 
